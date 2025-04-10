@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>HUD System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js" crossorigin="anonymous"></script>
+    
+    <style>
+      @keyframes flicker {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+      }
+    
+      .flicker {
+        animation: flicker 1s infinite;
+      }
+    </style>    
+  </head>
+  
+
+  <div id="hud" class="hidden fixed bottom-8 left-1/2 -translate-x-1/2 flex gap-4 z-[9999]">
+    <div id="healthCircle" class="border-[5px] border-red-500 text-white text-center w-[70px] h-[70px] rounded-full flex flex-col items-center justify-center text-sm font-bold shadow-lg">
+      <div id="healthText">100</div>
+      <i class="fas fa-heart text-lg"></i>
+    </div>
+    <div id="armorCircle" class="border-[5px] border-blue-500 text-white text-center w-[70px] h-[70px] rounded-full flex flex-col items-center justify-center text-sm font-bold shadow-lg">
+      <div id="armorText">100</div>
+      <i class="fas fa-shield-alt text-lg"></i>
+    </div>
+    <div id="hungerCircle" class="border-[5px] border-amber-500 text-white text-center w-[70px] h-[70px] rounded-full flex flex-col items-center justify-center text-sm font-bold shadow-lg">
+      <div id="hungerText">100</div>
+      <i class="fas fa-hamburger text-lg"></i>
+    </div>
+    <div id="thirstCircle" class="border-[5px] border-sky-400 text-white text-center w-[70px] h-[70px] rounded-full flex flex-col items-center justify-center text-sm font-bold shadow-lg">
+      <div id="thirstText">100</div>
+      <i class="fas fa-tint text-lg"></i>
+    </div>
+    <div id="oxygenHUD" class="border-[5px] border-cyan-300 text-white text-center w-[70px] h-[70px] rounded-full flex flex-col items-center justify-center text-sm font-bold shadow-lg hidden">
+      <div id="oxygenText">100</div>
+      <i class="fas fa-lungs text-lg"></i>
+    </div>
+  </div>
+
+  <div id="player-info" class="hidden fixed top-1/2 right-4 -translate-y-1/2 text-white text-sm z-[9999] space-y-1 text-right">
+    <div class="flex items-center gap-2 justify-end">
+      <i class="fas fa-id-badge text-amber-400"></i>
+      <span id="playerIdText" class="font-medium">ID: 0</span>
+    </div>
+    <div class="flex items-center gap-2 justify-end">
+      <i class="fas fa-user-tag text-blue-400"></i>
+      <span id="playerJobText" class="font-medium">Job: Unemployed</span>
+    </div>
+    <div class="flex items-center gap-2 justify-end">
+      <i class="fas fa-wallet text-green-400"></i>
+      <span id="playerCashText" class="font-medium">$0</span>
+    </div>
+    <div class="flex items-center gap-2 justify-end">
+      <i class="fas fa-university text-yellow-400"></i>
+      <span id="playerBankText" class="font-medium">Bank: $0</span>
+    </div>    
+  </div>
+
+  <div id="car-hud" class="fixed bottom-8 right-8 z-[10000] hidden flex items-center gap-4">
+    <i id="fuelWarningIcon" class="fas fa-gas-pump text-yellow-400 text-4xl hidden"></i>
+    <i id="seatbeltWarningIcon" class="fas fa-user-slash text-red-500 text-4xl hidden"></i>
+    <div class="w-[200px] h-[100px] relative">
+      <svg viewBox="0 0 200 100" class="w-full h-full">
+        <path d="M10,100 A90,90 0 0,1 190,100" fill="none" stroke="#2d2d2d" stroke-width="20"/>
+        <path id="speedArc" d="M10,100 A90,90 0 0,1 10,100" fill="none" stroke="#ff4d4d" stroke-width="20" stroke-linecap="round"/>
+      </svg>
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/3 text-center text-white">
+        <div class="text-2xl font-bold"><span id="speedText">0</span> MPH</div>
+        <div class="text-sm font-semibold mt-2">
+          <span id="fuelText">100</span>% Fuel
+        </div>
+      </div>
+    </div>
+  </div>
+  
+
+  <div id="topRightImage" class="fixed top-4 right-4 z-[9999] hidden">
+    <img src="img/logo.png" alt="Server Logo" class="max-w-[120px] w-full h-auto object-contain rounded-xl shadow-lg" />
+  </div>
+  
+  <div id="streetNameHUD" class="fixed bottom-28 left-1/2 -translate-x-1/2 bg-black/50 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-lg z-[9999]">
+    Loading street...
+  </div>  
+
+  <script>
+    let enableDamageEffect = true;
+    let damageFadeTimeout;
+    let currentSpeed = 0;
+    let targetSpeed = 0;
+
+  window.addEventListener("message", (event) => {
+  const { action, data } = event.data;
+
+  if (action === "update") {
+    updateHUD("healthText", data.health);
+    updateHUD("armorText", data.armor);
+    updateHUD("hungerText", data.hunger);
+    updateHUD("thirstText", data.thirst);
+    if (data.inWater) {
+      document.getElementById("oxygenHUD").classList.remove("hidden");
+      updateHUD("oxygenText", data.oxygen);
+    } else {
+      document.getElementById("oxygenHUD").classList.add("hidden");
+    }
+  } else if (action === "playerInfo") {
+  document.getElementById("playerIdText").innerText = "ID: " + data.id;
+  document.getElementById("playerJobText").innerText = "Job: " + data.job;
+  document.getElementById("playerCashText").innerText = "Cash: $" + data.cash;
+  document.getElementById("playerBankText").innerText = "Bank: $" + data.bank;
+  } else if (action === "hudsettings") {
+    toggleEditMode();
+  } else if (action === "setConfig") {
+    if (data.showLogoImage) {
+      document.getElementById("topRightImage").classList.remove("hidden");
+    } else {
+      document.getElementById("topRightImage").classList.add("hidden");
+    }
+  } else if (action === "updateStreet" && data && data.street !== undefined) {
+    document.getElementById("streetNameHUD").innerText = data.street;
+  } else if (action === "updateCarHUD" && data && data.speed !== undefined && data.fuel !== undefined) {
+    document.getElementById("car-hud").classList.remove("hidden");
+
+    targetSpeed = data.speed;
+    updateHUD("fuelText", data.fuel);
+    animateSpeed();
+  } else if (action === "toggleHUD") {
+  const visibilityClass = data.visible ? "remove" : "add";
+  document.getElementById("hud").classList[visibilityClass]("hidden");
+  document.getElementById("player-info").classList[visibilityClass]("hidden");
+  document.getElementById("streetNameHUD").classList[visibilityClass]("hidden");
+} else if (action === "setColors") {
+  document.getElementById("healthCircle").style.borderColor = data.health;
+  document.getElementById("armorCircle").style.borderColor = data.armor;
+  document.getElementById("hungerCircle").style.borderColor = data.hunger;
+  document.getElementById("thirstCircle").style.borderColor = data.thirst;
+  document.getElementById("oxygenHUD").style.borderColor = data.oxygen;
+  document.getElementById("speedArc").setAttribute("stroke", data.speed);
+}
+
+
+
+
+});
+
+window.addEventListener("message", (event) => {
+    const { action, data } = event.data;
+
+    if (action === "updateCarHUD") {
+        const carHUD = document.getElementById("car-hud");
+        const fuelWarningIcon = document.getElementById("fuelWarningIcon");
+        const seatbeltWarningIcon = document.getElementById("seatbeltWarningIcon");
+
+        if (data.inVehicle) {
+            carHUD.classList.remove("hidden");
+            updateHUD("speedText", Math.round(data.speed));
+            updateHUD("fuelText", Math.round(data.fuel));
+            animateSpeed(data.speed); 
+        } else {
+            carHUD.classList.add("hidden");
+        }
+
+        if (data.fuel < 15) {
+    fuelWarningIcon.classList.remove("hidden");
+    fuelWarningIcon.classList.add("flicker");
+} else {
+    fuelWarningIcon.classList.add("hidden");
+    fuelWarningIcon.classList.remove("flicker");
+}
+    }
+});
+
+
+    function updateHUD(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.innerText = Math.round(value);
+    }
+
+    function animateSpeed() {
+      if (Math.abs(currentSpeed - targetSpeed) > 0.5) {
+        currentSpeed += (targetSpeed - currentSpeed) * 0.1;
+        setSpeedDisplay(currentSpeed);
+        requestAnimationFrame(animateSpeed);
+      } else {
+        currentSpeed = targetSpeed;
+        setSpeedDisplay(currentSpeed);
+      }
+    }
+
+    function setSpeedDisplay(speed) {
+      const rounded = Math.round(speed);
+      document.getElementById("speedText").innerText = rounded;
+      setSpeedArc(rounded);
+    }
+
+    function setSpeedArc(speed) {
+      const maxSpeed = 160;
+      const clamped = Math.min(Math.max(speed, 0), maxSpeed);
+      const radius = 90;
+      const centerX = 100;
+      const centerY = 100;
+      const startAngle = Math.PI;
+      const endAngle = Math.PI + (Math.PI * (clamped / maxSpeed));
+      const x1 = centerX + radius * Math.cos(startAngle);
+      const y1 = centerY + radius * Math.sin(startAngle);
+      const x2 = centerX + radius * Math.cos(endAngle);
+      const y2 = centerY + radius * Math.sin(endAngle);
+      const largeArcFlag = (endAngle - startAngle) > Math.PI ? 1 : 0;
+      const d = `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`;
+      document.getElementById("speedArc").setAttribute("d", d.trim());
+    }
+
+
+  </script>
+</body>
+</html>
