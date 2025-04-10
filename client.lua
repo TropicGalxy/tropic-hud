@@ -94,7 +94,7 @@ local function updateCarHUD()
 
     if inVehicle then
         local speed = GetEntitySpeed(veh) * Config.Speed 
-        local fuel = Config.FuelExport
+        local fuel = Config.GetFuel(veh)
 
         SendNUIMessage({
             action = "updateCarHUD",
